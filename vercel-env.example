@@ -1,0 +1,43 @@
+# =============================================================================
+# DecoTV · Vercel 环境变量清单（Project Settings → Environment Variables）
+# -----------------------------------------------------------------------------
+# 用法：
+#   1. 把下面「不带 # 注释」的 KEY=VALUE 行直接粘进 Vercel 的
+#      "Environment Variables → Bulk import" 文本框（本文件的 # 注释行会被忽略）。
+#   2. 把 <占位符> 换成你的真实值后再导入。
+#   3. Environment 勾选 Production / Preview / Development 全部（搜索与弹幕在所有环境都要）。
+#   4. 导入后 Redeploy；弹幕需进 /admin 重配或填采集源订阅。
+#
+# 注意：NEXT_PUBLIC_ 开头的变量属于构建期注入，改完必须触发一次新 Build（Redeploy）。
+# =============================================================================
+
+# ===== A. 修复搜索为空（必做）=====
+# Vercel 默认是 localstorage，serverless 多实例会丢配置 → 搜索 0 结果。
+# 改用 Upstash Redis 持久化配置。
+NEXT_PUBLIC_STORAGE_TYPE=upstash
+# Upstash 控制台「REST API endpoint」（形如 https://xxx.upstash.io，不是 rediss:// 那个）
+UPSTASH_URL=https://<your-db>.upstash.io
+# Upstash 控制台「REST API token」（一长串）
+UPSTASH_TOKEN=<your-upstash-token>
+
+# ===== B. 弹幕（三选一，只能选一条生效）=====
+# 方案①（推荐）：自有弹弹play 开发者凭证，完全绕开坏掉的默认中继
+DANDANPLAY_APP_ID=<your-dandanplay-app-id>
+DANDANPLAY_APP_SECRET=<your-dandanplay-app-secret>
+
+# 方案②：不想申请凭证，直接关掉弹幕（优雅降级为空弹幕，不再 401 报错）
+# 取消下一行注释即可，同时把方案①两行注释掉
+# DANDANPLAY_RELAY_URL=disabled
+
+# 方案③：指向你自己的、开了 NEXT_PUBLIC_AUTH_MODE=public 的另一个 DecoTV 实例
+# DANDANPLAY_RELAY_URL=https://<your-public-instance>.vercel.app
+
+# ===== C. 安全开关（可选）=====
+# 关闭「本实例对外转发弹幕中继」（默认开启；开启意味着带中继头的请求可免登录打 /api/danmu-external）
+# DANDANPLAY_PUBLIC_RELAY_ENABLED=false
+
+# ===== D. 已存在 / 不要动（若已在 Vercel 设置则保持，勿在此覆盖）=====
+# NEXT_PUBLIC_AUTH_MODE=password      # 保持密码模式，切勿改 public（否则全站公开）
+# PASSWORD=                           # 站点登录密码（你已在 Vercel 设过）
+# ADMIN_USERNAME=                    # /admin 账号（已设）
+# ADMIN_PASSWORD=                    # /admin 密码（已设）
