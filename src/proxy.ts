@@ -4,6 +4,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { isPublicAdminAllowed, isPublicMode } from '@/lib/auth-mode';
+import {
+  DANDANPLAY_RELAY_REQUEST_HEADER,
+  isDandanplayPublicRelayEnabled,
+  isDandanplayRelayPath,
+} from '@/lib/dandanplay-shared';
 
 export async function proxy(request: NextRequest) {
   let pathname = request.nextUrl.pathname;
@@ -72,6 +77,16 @@ export async function proxy(request: NextRequest) {
   }
 
   if (request.method === 'OPTIONS' && pathname.startsWith('/api/proxy')) {
+    return NextResponse.next();
+  }
+
+  // 托管弹幕中继：其他 DecoTV 实例转发过来的请求携带中继头且没有本站 cookie，
+  // 走正常鉴权必然 401。仅对弹幕端点 + 显式开启中继时放行（默认开启）。
+  if (
+    isDandanplayRelayPath(pathname) &&
+    request.headers.get(DANDANPLAY_RELAY_REQUEST_HEADER) === '1' &&
+    isDandanplayPublicRelayEnabled()
+  ) {
     return NextResponse.next();
   }
 

@@ -272,6 +272,38 @@ async function searchFromManagedRelay(request: Request) {
       },
       signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
     });
+    // 上游中继非 2xx：不要原样透传状态码。
+    // 401/403 说明该实例开启了访问鉴权，中继请求（无 cookie）必然被拒，
+    // 此时给出可操作的提示而不是把 401 抛给前端。
+    if (!response.ok) {
+      const isAuthError = response.status === 401 || response.status === 403;
+      const message = isAuthError
+        ? 'DecoTV 托管弹幕中继要求鉴权，暂时无法搜索弹幕。请配置自有弹弹play凭证（DANDANPLAY_APP_ID / DANDANPLAY_APP_SECRET），或将 DANDANPLAY_RELAY_URL 指向开启了免登录（NEXT_PUBLIC_AUTH_MODE=public）的实例。'
+        : `DecoTV 托管弹幕中继不可用: HTTP ${response.status}`;
+
+      if (isAuthError) {
+        console.warn(
+          '[danmu-relay] 托管弹幕中继拒绝了搜索中继请求: HTTP ' +
+            response.status,
+        );
+      }
+
+      return {
+        responseStatus: isAuthError ? 503 : 502,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-DecoTV-Danmu-Source': 'managed-relay',
+        },
+        data: {
+          code: isAuthError ? 503 : 502,
+          message,
+          source: 'managed-relay',
+          animes: [],
+          relayUnauthorized: isAuthError,
+        },
+      };
+    }
+
     const data = await response.json();
 
     return {

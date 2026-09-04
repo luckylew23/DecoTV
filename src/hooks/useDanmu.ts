@@ -240,6 +240,13 @@ export function useDanmu(params: UseDanmuParams): UseDanmuResult {
         );
 
         const data = await response.json();
+
+        // 弹幕服务未配置 / 中继被鉴权拒绝，属于"环境未就绪"，不是可重试的故障。
+        // 静默降级为空弹幕，避免每集都弹红色报错（修复提示见服务端日志）。
+        if (!response.ok && data?.relayUnauthorized) {
+          return { danmus: [], match: null };
+        }
+
         if (!response.ok) {
           throw new Error(
             typeof data.message === 'string'

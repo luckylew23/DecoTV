@@ -1089,6 +1089,48 @@ async function fetchFromManagedRelay(
       }
     }
 
+    // 上游中继返回非 2xx：不要原样透传状态码。
+    // 尤其是 401/403 —— 维护者实例若开启密码鉴权，中继请求（无 cookie）必然被拒，
+    // 透传会在日志里刷出无意义的 401，且前端无法区分"没有弹幕"和"中继不可用"。
+    if (!response.ok) {
+      const relayHeaders = {
+        'Cache-Control': 'no-store',
+        'X-DecoTV-Danmu-Source': 'managed-relay',
+      };
+
+      if (response.status === 401 || response.status === 403) {
+        console.warn(
+          `[danmu-relay] 托管弹幕中继拒绝了中继请求: HTTP ${response.status}。该实例开启了访问鉴权，请为本部署配置 DANDANPLAY_APP_ID / DANDANPLAY_APP_SECRET，或将 DANDANPLAY_RELAY_URL 指向可免鉴权访问的实例。`,
+        );
+        return NextResponse.json(
+          {
+            code: 503,
+            message:
+              'DecoTV 托管弹幕中继要求鉴权，暂时无法提供弹幕。请配置自有弹弹play凭证（DANDANPLAY_APP_ID / DANDANPLAY_APP_SECRET），或将 DANDANPLAY_RELAY_URL 指向开启了免登录（NEXT_PUBLIC_AUTH_MODE=public）的实例。',
+            danmus: [],
+            count: 0,
+            source: 'managed-relay',
+            relayUnauthorized: true,
+          },
+          { status: 503, headers: relayHeaders },
+        );
+      }
+
+      console.warn(
+        `[danmu-relay] 托管弹幕中继返回异常状态: HTTP ${response.status}`,
+      );
+      return NextResponse.json(
+        {
+          code: 502,
+          message: `DecoTV 托管弹幕中继不可用: HTTP ${response.status}`,
+          danmus: [],
+          count: 0,
+          source: 'managed-relay',
+        },
+        { status: 502, headers: relayHeaders },
+      );
+    }
+
     try {
       return NextResponse.json(JSON.parse(body) as unknown, {
         status: response.status,
@@ -1097,16 +1139,14 @@ async function fetchFromManagedRelay(
     } catch {
       return NextResponse.json(
         {
-          code: response.ok ? 502 : response.status,
-          message: response.ok
-            ? 'DecoTV 托管弹幕中继返回了无效响应'
-            : `DecoTV 托管弹幕中继不可用: HTTP ${response.status}`,
+          code: 502,
+          message: 'DecoTV 托管弹幕中继返回了无效响应',
           danmus: [],
           count: 0,
           source: 'managed-relay',
         },
         {
-          status: response.ok ? 502 : response.status,
+          status: 502,
           headers: {
             'Cache-Control': 'no-store',
             'X-DecoTV-Danmu-Source': 'managed-relay',

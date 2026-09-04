@@ -1,8 +1,15 @@
 import { createHash } from 'crypto';
 
+// 中继相关常量与判断统一放在 dandanplay-shared.ts（Edge 安全，供 proxy.ts 复用），
+// 这里保持原有的导出名，调用方无需改动。
+export {
+  DANDANPLAY_RELAY_REQUEST_HEADER,
+  isDandanplayPublicRelayEnabled,
+  isDandanplayRelayRequest,
+} from './dandanplay-shared';
+
 export const DANDANPLAY_API_BASE = 'https://api.dandanplay.net';
 export const DEFAULT_DANDANPLAY_RELAY_ORIGIN = 'https://tv.katelya.eu.org';
-export const DANDANPLAY_RELAY_REQUEST_HEADER = 'x-decotv-dandanplay-relay';
 export const DANDANPLAY_NOT_CONFIGURED_MESSAGE =
   '弹弹play官方弹幕暂不可用：当前实例未配置有效的服务端凭证，且未启用或无法连接托管中继。Docker 可改用自定义弹幕节点或配置自有凭证。';
 
@@ -45,14 +52,6 @@ export function getDandanplayRelayOrigin(): string | null {
   } catch {
     return null;
   }
-}
-
-export function isDandanplayRelayRequest(request: Request): boolean {
-  return request.headers.get(DANDANPLAY_RELAY_REQUEST_HEADER) === '1';
-}
-
-export function isDandanplayPublicRelayEnabled(): boolean {
-  return process.env.DANDANPLAY_PUBLIC_RELAY_ENABLED !== 'false';
 }
 
 export function buildDandanplayRelayRequestUrl(
